@@ -8,7 +8,7 @@
 #include <netinet/in.h>
 #include <pthread.h>
 
-#define BUFFSIZE 100
+#define BUFFSIZE 200
 #define NAMESIZE 20
 
 void error_handling(char* msg);
