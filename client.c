@@ -18,7 +18,7 @@ void* recv_message(void* arg);
 char message[BUFFSIZE];
 char id[NAMESIZE];
 
-void* rcv(void* arg){
+void* recv_message(void* arg){
     printf("rcv thread created!\n");
     
     int sock = *((int*)arg);
@@ -40,7 +40,7 @@ void* rcv(void* arg){
     return 0;
 }
 
-void* snd(void* arg)
+void* send_message(void* arg)
 {
     int sock = *((int *)arg);
     char chat[BUFFSIZE];
@@ -94,8 +94,8 @@ int main(int argc, char **argv){
         printf("connection success\n");
     }
 
-    pthread_create(&rcv_thread, NULL, rcv, (void*) &sock);
-    pthread_create(&snd_thread, NULL, snd, (void*) &sock);
+    pthread_create(&rcv_thread, NULL, recv_message, (void*) &sock);
+    pthread_create(&snd_thread, NULL, send_message, (void*) &sock);
 
     pthread_join(rcv_thread, NULL);
     pthread_join(snd_thread, NULL);
