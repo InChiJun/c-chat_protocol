@@ -16,7 +16,7 @@ void* send_message(void* arg);
 void* recv_message(void* arg);
 
 char message[BUFFSIZE];
-char id[NAMESIZE];
+char name[NAMESIZE];
 
 void* recv_message(void* arg){
     printf("rcv thread created!\n");
@@ -50,7 +50,7 @@ void* send_message(void* arg)
     while(1){
         fgets(chat, BUFFSIZE, stdin);
 
-        sprintf(msg, "[%s]: %s\n", id, chat);
+        sprintf(msg, "[%s]: %s\n", name, chat);
         printf("send: %s", msg);
 
         write(sock, msg, strlen(msg)+1);
@@ -73,16 +73,19 @@ int main(int argc, char **argv){
     pthread_t snd_thread, rcv_thread;
     void* thread_result;
 
-    // printf("argc: %d\n", argc); // 처음에 ID값 줬는지 확인하는 라인
+    // printf("argc: %d\n", argc); // 처음에 name값 줬는지 확인하는 라인
     // if (argc < 2){
-    //     printf("you have to enter ID\n");
+    //     printf("you have to enter name\n");
     //     return 0;
     // }
-    printf("이름을 입력하세요: ");
-    scanf("%s", id);
+    do
+    {
+        printf("Please enter your name: ");
+        fgets(name, NAMESIZE, stdin);
+    } while(strstr(name, " ") != NULL);
 
-    // strcpy(id, argv[1]);
-    printf("id: %s\n", id);
+    // strcpy(name, argv[1]);
+    printf("USER name: %s\n", name);
 
     sock = socket(PF_INET, SOCK_STREAM, 0);
     if(sock == -1){
@@ -101,6 +104,9 @@ int main(int argc, char **argv){
         error_handling("connect error");
     } else{
         printf("connection success\n");
+        char msg[NAMESIZE+4];
+        sprintf(msg, "[Entrance]: %s\n", name);
+        write(sock, msg, strlen(msg)+1);
     }
 
     pthread_create(&rcv_thread, NULL, recv_message, (void*) &sock);
