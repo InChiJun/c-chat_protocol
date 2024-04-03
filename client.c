@@ -46,12 +46,11 @@ void* send_message(void* arg)
     char chat[BUFFSIZE];
     char msg[NAMESIZE + BUFFSIZE + 4];
 
-    // send 기능 시작 부분. 아래의 내용을 snd thread 만들어야 함
     printf("while before\n");
     while(1){
         fgets(chat, BUFFSIZE, stdin);
 
-        sprintf(msg, "[%s]: %s\n", id, chat);
+        sprintf(msg, "[%s]: %s", id, chat);
         printf("send: %s", msg);
 
         write(sock, msg, strlen(msg)+1);
@@ -71,7 +70,7 @@ void error_handling(char *msg)
 int main(int argc, char **argv){
     int sock;
     struct sockaddr_in serv_addr;
-    pthread_t snd_thread, rcv_thread; // **snd_thread는 따로 만들어야 함
+    pthread_t snd_thread, rcv_thread;
     void* thread_result;
 
     printf("argc: %d\n", argc); // 처음에 ID값 줬는지 확인하는 라인

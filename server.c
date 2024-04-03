@@ -101,6 +101,7 @@ int main(int argc, char ** argv){
         pthread_mutex_unlock(&g_mutex);
 
         pthread_create(&t_thread, NULL, clnt_connection, (void*)clnt_sock);
+        pthread_detach(t_thread);
     }
 
     return 1;
