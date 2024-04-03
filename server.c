@@ -58,7 +58,7 @@ void send_spec_clnt(char* msg){
 }
 
 void* clnt_connection(void* arg){ // 클라이언트 connect하는 start_routine
-    int clnt_sock = (int)arg;
+    int clnt_sock = *((int*)arg);
     int str_len = 0;
     char msg[BUFFSIZE];
     int my_num;
@@ -152,7 +152,7 @@ int main(int argc, char ** argv){
         g_clnt_socks[g_clnt_count++] = clnt_sock;
         pthread_mutex_unlock(&g_mutex);
 
-        pthread_create(&t_thread, NULL, clnt_connection, (void*)clnt_sock);
+        pthread_create(&t_thread, NULL, clnt_connection, (void*) &clnt_sock);
         pthread_detach(t_thread);
     }
 
