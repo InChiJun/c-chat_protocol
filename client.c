@@ -50,7 +50,7 @@ void* send_message(void* arg)
     while(1){
         fgets(chat, BUFFSIZE, stdin);
 
-        sprintf(msg, "[%s]: %s", id, chat);
+        sprintf(msg, "[%s]: %s\n", id, chat);
         printf("send: %s", msg);
 
         write(sock, msg, strlen(msg)+1);
