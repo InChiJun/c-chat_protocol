@@ -105,7 +105,7 @@ int main(int argc, char **argv){
     } else{
         printf("connection success\n");
         char msg[NAMESIZE+4];
-        sprintf(msg, "[Entrance]: %s\n", name);
+        sprintf(msg, "[Entrance]: %s", name);
         write(sock, msg, strlen(msg)+1);
     }
 
