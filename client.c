@@ -82,6 +82,7 @@ int main(int argc, char **argv){
     {
         printf("Please enter your name: ");
         fgets(name, NAMESIZE, stdin);
+        name[strlen(name)-1] = '\0';
     } while(strstr(name, " ") != NULL);
 
     // strcpy(name, argv[1]);
