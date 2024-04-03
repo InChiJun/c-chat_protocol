@@ -84,7 +84,7 @@ int main(int argc, char **argv){
 
     sock = socket(PF_INET, SOCK_STREAM, 0);
     if(sock == -1){
-        printf("socked error\n");
+        error_handling("socked error");
     } else {
         printf("socket ok\n");
     }
@@ -98,7 +98,7 @@ int main(int argc, char **argv){
     if(connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1){
         error_handling("connect error");
     } else{
-        error_handling("connection success");
+        printf("connection success\n");
     }
 
     pthread_create(&rcv_thread, NULL, recv_message, (void*) &sock);
