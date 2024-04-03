@@ -37,19 +37,23 @@ void send_all_clnt(char* msg, int my_sock){
 }
 
 void send_spec_clnt(char* msg){
-    char* tok[4];
+    char * tok[4];
 
     tok[0] = strtok(msg, " ");
+    printf("%s\n", tok[0]);
     for(int i = 1; i < 4; ++i){
         tok[i] = strtok(NULL, " ");
+        printf("%s\n", tok[i]);
     }
 
     char sendmsg[BUFFSIZE];
     sprintf(sendmsg, "%s %s", tok[0], tok[3]);
 
     pthread_mutex_lock(&g_mutex);
+    printf("1");
     for(int i = 0; i < g_clnt_count; i++){
-        if(strcmp(user[i].name, tok[3]) == 0){
+        printf("2");
+        if(strcmp(user[i].name, tok[2]) == 0){
             printf("send spec msg: %s", msg);
             write(g_clnt_socks[i], sendmsg, strlen(sendmsg)+1);
         }

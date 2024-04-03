@@ -105,9 +105,9 @@ int main(int argc, char **argv){
         error_handling("connect error");
     } else{
         printf("connection success\n");
-        char msg[NAMESIZE+4];
-        sprintf(msg, "[Entrance]: %s", name);
-        write(sock, msg, strlen(msg)+1);
+        // char msg[NAMESIZE+4];
+        // sprintf(msg, "[Entrance]: %s", name);
+        write(sock, name, strlen(name)+1);
     }
 
     pthread_create(&rcv_thread, NULL, recv_message, (void*) &sock);
