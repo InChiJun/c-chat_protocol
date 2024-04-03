@@ -10,10 +10,20 @@
 
 #define CLNT_MAX 10
 #define BUFFSIZE 200
+#define NAMESIZE 20
 
 int g_clnt_socks[CLNT_MAX]; // client 소켓을 모아놓은 배열
 int g_clnt_count = 0; // client 수
 pthread_mutex_t g_mutex;
+
+// USER 정보 구조체
+typedef struct _USER
+{
+    char name[NAMESIZE];    // USER NAME
+}USER;
+
+USER user[CLNT_MAX];    // user 정보 구조체 배열
+
 
 void send_all_clnt(char* msg, int my_sock){
     pthread_mutex_lock(&g_mutex);
@@ -26,23 +36,61 @@ void send_all_clnt(char* msg, int my_sock){
     pthread_mutex_unlock(&g_mutex);
 }
 
+void send_spec_clnt(char* msg){
+    char* tok[4];
+
+    tok[0] = strtok(msg, " ");
+    for(int i = 1; i < 4; ++i){
+        tok[i] = strtok(NULL, " ");
+    }
+
+    char sendmsg[BUFFSIZE];
+    sprintf(sendmsg, "%s %s", tok[0], tok[3]);
+
+    pthread_mutex_lock(&g_mutex);
+    for(int i = 0; i < g_clnt_count; i++){
+        if(strcmp(user[i].name, tok[3]) == 0){
+            printf("send spec msg: %s", msg);
+            write(g_clnt_socks[i], sendmsg, strlen(sendmsg)+1);
+        }
+    }
+    pthread_mutex_unlock(&g_mutex);
+}
+
 void* clnt_connection(void* arg){ // 클라이언트 connect하는 start_routine
     int clnt_sock = (int)arg;
     int str_len = 0;
     char msg[BUFFSIZE];
-    int i;
+    int my_num;
+    
+    // 본인 인덱스 찾는 부분
+    for(int i = 0; i < g_clnt_count; i++){
+        if(clnt_sock == g_clnt_socks[i]){
+            my_num = i;
+            break;
+        }//end if
+    }//end for
+
+    char cmpmsg[NAMESIZE + 8];
+    sprintf(cmpmsg, "[%s]: /msg", user[my_num].name);
 
     while(1){
         str_len = read(clnt_sock, msg, sizeof(msg));
-        if(str_len == -1){
+        if(str_len <= 0){
             printf("clnt[%d] close\n", clnt_sock);
             break;
         }
-        send_all_clnt(msg, clnt_sock); // **소켓을 넣어서 보내는 이유를 파악해보자.
+        if(strncmp(msg, cmpmsg, strlen(cmpmsg)) == 0) send_spec_clnt(msg);
+        else send_all_clnt(msg, clnt_sock); // **소켓을 넣어서 보내는 이유를 파악해보자.
         printf("%s\n", msg); // **사용자 아이디도 있어야 하므로 버그 가능(수정 필요)
     }
     
     pthread_mutex_lock(&g_mutex);
+    for(; my_num < g_clnt_count - 1; my_num++){
+                g_clnt_socks[my_num] = g_clnt_socks[my_num+1];
+    }//end for
+
+    /*
     for(i = 0; i < g_clnt_count; i++){
         if(clnt_sock == g_clnt_socks[i]){
             for(; i < g_clnt_count - 1; i++){
@@ -51,6 +99,7 @@ void* clnt_connection(void* arg){ // 클라이언트 connect하는 start_routine
             }//end for
         }//end if
     }//end for
+    */
     pthread_mutex_unlock(&g_mutex);
     close(clnt_sock);
     pthread_exit(0);
@@ -96,13 +145,18 @@ int main(int argc, char ** argv){
         clnt_sock = accept(serv_sock, (struct sockaddr *)&clnt_addr, &clnt_addr_size);
                     // accept로 client의 정보(IP주소)를 넘김.
                     // 여기에 담긴 IP로 사용자를 관리할 수 있음
+        char clnt_name[NAMESIZE];
+        read(clnt_sock, clnt_name, sizeof(clnt_name));            
         pthread_mutex_lock(&g_mutex);
-         g_clnt_socks[g_clnt_count++] = clnt_sock;
+        strcpy(user[g_clnt_count].name, clnt_name);
+        g_clnt_socks[g_clnt_count++] = clnt_sock;
         pthread_mutex_unlock(&g_mutex);
 
         pthread_create(&t_thread, NULL, clnt_connection, (void*)clnt_sock);
         pthread_detach(t_thread);
     }
+
+    close(serv_sock);
 
     return 1;
 }
