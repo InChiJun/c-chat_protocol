@@ -73,13 +73,15 @@ int main(int argc, char **argv){
     pthread_t snd_thread, rcv_thread;
     void* thread_result;
 
-    printf("argc: %d\n", argc); // 처음에 ID값 줬는지 확인하는 라인
-    if (argc < 2){
-        printf("you have to enter ID\n");
-        return 0;
-    }
+    // printf("argc: %d\n", argc); // 처음에 ID값 줬는지 확인하는 라인
+    // if (argc < 2){
+    //     printf("you have to enter ID\n");
+    //     return 0;
+    // }
+    printf("이름을 입력하세요: ");
+    scanf("%s", id);
 
-    strcpy(id, argv[1]);
+    // strcpy(id, argv[1]);
     printf("id: %s\n", id);
 
     sock = socket(PF_INET, SOCK_STREAM, 0);
