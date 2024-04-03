@@ -60,6 +60,14 @@ void* send_message(void* arg)
     printf("while end");
     return NULL;
 }
+
+void error_handling(char *msg)
+{
+    fputs(msg, stderr);
+    fputc('\n', stderr);
+    exit(1);
+}
+
 int main(int argc, char **argv){
     int sock;
     struct sockaddr_in serv_addr;
@@ -86,12 +94,12 @@ int main(int argc, char **argv){
     memset(&serv_addr, 0,sizeof(serv_addr));
     serv_addr.sin_family=AF_INET;
     serv_addr.sin_addr.s_addr=inet_addr("127.0.0.1");
-    serv_addr.sin_port=htons(7989);
+    serv_addr.sin_port=htons(7090);
 
     if(connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1){
-        printf("connect error\n");
+        error_handling("connect error");
     } else{
-        printf("connection success\n");
+        error_handling("connection success");
     }
 
     pthread_create(&rcv_thread, NULL, recv_message, (void*) &sock);
