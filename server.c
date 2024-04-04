@@ -48,28 +48,36 @@ void send_all_clnt(char* msg, int my_sock){ // 자신을 제외한 모든 사용
 }
 
 void send_spec_clnt(char* msg){
-    char * tok[4];
+    char * tok[4];  // 보낸 메시지를 나누어서 저장할 배열 포인터 [0]: 명령어, [1]: 받을 사람, [2] : 보낼 내용
 
     tok[0] = strtok(msg, " ");
-    printf("%s\n", tok[0]);
     for(int i = 1; i < 4; ++i){
         tok[i] = strtok(NULL, " ");
-        printf("%s\n", tok[i]);
     }
 
     char sendmsg[BUFFSIZE];
     sprintf(sendmsg, "%s %s", tok[0], tok[3]);
 
     pthread_mutex_lock(&g_mutex);
-    printf("1");
     for(int i = 0; i < g_clnt_count; i++){
-        printf("2");
         if(strcmp(user[i].name, tok[2]) == 0){
             printf("send spec msg: %s", msg);
             write(g_clnt_socks[i], sendmsg, strlen(sendmsg)+1);
         }
     }
     pthread_mutex_unlock(&g_mutex);
+}
+
+void handle_command(char* msg, int my_sock){    // 명령어를 다루는 함수
+    char* cmd;   // 명령어 저장 포인터
+    cmd = strtok(msg, " ");  // 배열에 명령어 저장
+    char* errorcode = "잘못된 명령어 입니다.";
+
+    if(strcmp(cmd, "/msg") == 0)
+    {
+        send_spec_clnt(msg);
+    }
+    else write(my_sock, errorcode, strlen(errorcode));
 }
 
 void* clnt_connection(void* arg){ // 클라이언트 connect하는 start_routine
@@ -86,8 +94,8 @@ void* clnt_connection(void* arg){ // 클라이언트 connect하는 start_routine
         }//end if
     }//end for
 
-    char cmpmsg[NAMESIZE + 8];
-    sprintf(cmpmsg, "[%s]: /msg", user[my_num].name);
+    // char cmpmsg[NAMESIZE + 8];
+    // sprintf(cmpmsg, "[%s]: /msg", user[my_num].name);
 
     while(1){
         str_len = read(clnt_sock, msg, sizeof(msg));
@@ -95,7 +103,11 @@ void* clnt_connection(void* arg){ // 클라이언트 connect하는 start_routine
             printf("clnt[%d] close\n", clnt_sock);
             break;
         }
-        if(strncmp(msg, cmpmsg, strlen(cmpmsg)) == 0) send_spec_clnt(msg);
+        if(strncmp(msg, "/", 1) == 0)
+        {
+            // 명령어 확인 함수로 이동해서 어떤 명령어 인지 받고 실행
+            handle_command(msg, clnt_sock);
+        }
         else send_all_clnt(msg, clnt_sock); // **소켓을 넣어서 보내는 이유를 파악해보자.
         printf("%s\n", msg); // **사용자 아이디도 있어야 하므로 버그 가능(수정 필요)
     }
@@ -121,7 +133,7 @@ void* clnt_connection(void* arg){ // 클라이언트 connect하는 start_routine
     
     return NULL;
 }
-
+/*
 void* handle_chatroom(void* arg){
     ROOM room = *((ROOM*)arg);
     int str_len = 0;
@@ -154,22 +166,12 @@ void* handle_chatroom(void* arg){
     for(; my_num < g_clnt_count - 1; my_num++){
                 g_clnt_socks[my_num] = g_clnt_socks[my_num+1];
     }//end for
-
-    /*
-    for(i = 0; i < g_clnt_count; i++){
-        if(clnt_sock == g_clnt_socks[i]){
-            for(; i < g_clnt_count - 1; i++){
-                g_clnt_socks[i] = g_clnt_socks[i+1];
-                break;
-            }//end for
-        }//end if
-    }//end for
-    */
     pthread_mutex_unlock(&g_mutex);
     pthread_exit(0);
 
     return NULL;
 }
+
 
 void create_chatroom(pthread_t* t_thread, char* user1_name, char* user2_name){   // 개인 채팅방 만드는 함수
     int room_count = 0; // 만들 방의 인덱스 위치
@@ -180,7 +182,7 @@ void create_chatroom(pthread_t* t_thread, char* user1_name, char* user2_name){  
     pthread_mutex_unlock(&g_mutex);
     return NULL;
 }
-
+*/
 int main(int argc, char ** argv){
     int serv_sock;
     int clnt_sock;
