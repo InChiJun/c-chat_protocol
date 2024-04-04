@@ -7,16 +7,20 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <pthread.h>
+//#include <sys/select.h>   // 1:1 채팅 방 만들 때 사용
 
-#define CLNT_MAX 10
-#define BUFFSIZE 200
-#define NAMESIZE 20
-#define ROOM_MAX 5
+// 전처리 문자
+#define CLNT_MAX 10     // 클라이언트 최대 개수
+#define BUFFSIZE 200    // 버퍼 최대 사이즈
+#define NAMESIZE 20     // 이름 최대 사이즈
+#define ROOM_MAX 5      // 1:1 채팅방 최대 개수
 
+// 전역 변수
 int g_clnt_socks[CLNT_MAX]; // client 소켓을 모아놓은 배열
 int g_clnt_count = 0; // client 수
-pthread_mutex_t g_mutex;
-int g_room_count = 0;   // room 개수
+pthread_mutex_t g_mutex;    // mutex 키
+//int g_room_count = 0;   // room 개수
+//pthread_t g_t_thread[ROOM_MAX]; // 1:1 채팅 방 스레드를 모아놓은 배열
 
 // USER 정보 구조체
 typedef struct _USER
@@ -25,17 +29,18 @@ typedef struct _USER
 }USER;
 
 //chatroom 정보 구조체
-typedef struct _ROOM
-{
-    char user1_name[NAMESIZE];
-    char user2_name[NAMESIZE];
+// typedef struct _ROOM
+// {
+//     char user1_name[NAMESIZE];
+//     char user2_name[NAMESIZE];
 
-}ROOM;
+// }ROOM;
 
 // 구조체 배열들
 USER user[CLNT_MAX];    // user 정보 구조체 배열
-ROOM room[ROOM_MAX];    // room 정보 구조체 배열
+// ROOM room[ROOM_MAX];    // room 정보 구조체 배열
 
+// 함수들
 char* search_name(int my_sock){ // 자신의 이름을 찾는 함수
     for(int i = 0; i < g_clnt_count; i++){
         if(my_sock == g_clnt_socks[i]){ // 클라이언트 소켓에 저장 되어있는 소켓이 자신의 소켓과 같은 소켓인지 찾아서 인덱스 알아내기
@@ -58,7 +63,7 @@ void send_all_clnt(char* msg, int my_sock){ // 자신을 제외한 모든 사용
     pthread_mutex_unlock(&g_mutex);
 }
 
-void send_spec_clnt(char* msg, int my_sock){
+void send_spec_clnt(char* msg, int my_sock){    // 귀속말 함수(특정 사용자에게만 전달하는 함수)
     char * tok[3];  // 보낸 메시지를 나누어서 저장할 배열 포인터 [0]: 명령어, [1]: 받을 사람, [2] : 보낼 내용
 
     tok[0] = strtok(msg, " ");
@@ -85,9 +90,13 @@ void handle_command(char* msg, int my_sock){    // 명령어를 다루는 함수
     char* cmd;   // 명령어 저장 포인터
     cmd = strtok(msg_copy, " ");  // 명령어 저장
 
-    if(strcmp(cmd, "/msg") == 0)    // 귓속말 명령어
+    if(strcmp(cmd, "/msg") == 0)    // 귓속말 명령어 형식: /msg [받는 사람] [보낼 문장]
     {
         send_spec_clnt(msg, my_sock);
+    }
+    else if(strcmp(cmd, "/") == 0)
+    {
+
     }
     else write(my_sock, "errorcode", strlen("errorcode") + 1);
     free(msg_copy); // 메모리 해제
@@ -118,8 +127,7 @@ void* clnt_connection(void* arg){ // 클라이언트 connect하는 start_routine
         }
         if(strncmp(msg, "/", 1) == 0)
         {
-            // 명령어 확인 함수로 이동해서 어떤 명령어 인지 받고 실행
-            handle_command(msg, clnt_sock);
+            handle_command(msg, clnt_sock); // 명령어를 처리하는 함수
         }
         else send_all_clnt(msg, clnt_sock); // **소켓을 넣어서 보내는 이유를 파악해보자.
         printf("%s\n", msg); // **사용자 아이디도 있어야 하므로 버그 가능(수정 필요)
@@ -147,51 +155,63 @@ void* clnt_connection(void* arg){ // 클라이언트 connect하는 start_routine
     return NULL;
 }
 /*
+int max(int x, int y){  // 둘 중에 더 큰 값 구하는 함수
+    return (x > y)? x : y;
+}
+
 void* handle_chatroom(void* arg){
-    ROOM room = *((ROOM*)arg);
-    int str_len = 0;
-    char msg[BUFFSIZE];
-    int my_num;
+    ROOM room = *((ROOM*)arg);  // 유저 이름 2개 있다.
+    int max_sd;
+    fd_set readfds;
+    char buffer[BUFFSIZE];
+
+    int cli
+
+    // 두 소켓 중 더 큰 값을 계산하여 select의 첫 번째 인자로 사용
+    max_sd = max(client_socket1, client_socket2) + 1;
     
-    // 본인 인덱스 찾는 부분
-    for(int i = 0; i < g_clnt_count; i++){
-        if(clnt_sock == g_clnt_socks[i]){
-            my_num = i;
-            break;
-        }//end if
-    }//end for
-
-    char cmpmsg[NAMESIZE + 8];
-    sprintf(cmpmsg, "[%s]: /msg", user[my_num].name);
-
-    while(1){
-        str_len = read(clnt_sock, msg, sizeof(msg));
-        if(str_len <= 0){
-            printf("clnt[%d] close\n", clnt_sock);
-            break;
+    while(1) {
+        FD_ZERO(&readfds);
+        
+        // 소켓을 fd_set에 추가
+        FD_SET(client_socket1, &readfds);
+        FD_SET(client_socket2, &readfds);
+        
+        // 대기
+        if(select(max_sd + 1, &readfds, NULL, NULL, NULL) < 0) {
+            perror("select error");
+            exit(EXIT_FAILURE);
         }
-        if(strncmp(msg, cmpmsg, strlen(cmpmsg)) == 0) send_spec_clnt(msg);
-        else send_all_clnt(msg, clnt_sock); // **소켓을 넣어서 보내는 이유를 파악해보자.
-        printf("%s\n", msg); // **사용자 아이디도 있어야 하므로 버그 가능(수정 필요)
+        
+        // 클라이언트 1로부터 메시지 수신
+        if(FD_ISSET(client_socket1, &readfds)) {
+            memset(buffer, 0, BUF_SIZE);
+            if(read(client_socket1, buffer, BUF_SIZE) > 0) {
+                // 클라이언트 2로 메시지 전송
+                write(client_socket2, buffer, strlen(buffer));
+            }
+        }
+        
+        // 클라이언트 2로부터 메시지 수신
+        if(FD_ISSET(client_socket2, &readfds)) {
+            memset(buffer, 0, BUF_SIZE);
+            if(read(client_socket2, buffer, BUF_SIZE) > 0) {
+                // 클라이언트 1로 메시지 전송
+                write(client_socket1, buffer, strlen(buffer));
+            }
+        }
     }
-    
-    pthread_mutex_lock(&g_mutex);
-    for(; my_num < g_clnt_count - 1; my_num++){
-                g_clnt_socks[my_num] = g_clnt_socks[my_num+1];
-    }//end for
-    pthread_mutex_unlock(&g_mutex);
-    pthread_exit(0);
 
     return NULL;
 }
 
 
 void create_chatroom(pthread_t* t_thread, char* user1_name, char* user2_name){   // 개인 채팅방 만드는 함수
-    int room_count = 0; // 만들 방의 인덱스 위치
     pthread_mutex_lock(&g_mutex);
     // 개인 채팅방 생성 로직을 구현하기
-    if(g_room_count == ROOM_MAX)
-    pthread_create(t_thread, NULL, handle_chatroom, (void*) &room[room_count]);
+    if(g_room_count == ROOM_MAX) return;
+    pthread_create(g_t_thread[g_room_count], NULL, handle_chatroom, (void*) &room[g_room_count]);
+    ++g_room_count;
     pthread_mutex_unlock(&g_mutex);
     return NULL;
 }
