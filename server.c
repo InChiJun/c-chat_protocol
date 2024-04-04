@@ -36,31 +36,42 @@ typedef struct _ROOM
 USER user[CLNT_MAX];    // user 정보 구조체 배열
 ROOM room[ROOM_MAX];    // room 정보 구조체 배열
 
+char* search_name(int my_sock){ // 자신의 이름을 찾는 함수
+    for(int i = 0; i < g_clnt_count; i++){
+        if(my_sock == g_clnt_socks[i]){ // 클라이언트 소켓에 저장 되어있는 소켓이 자신의 소켓과 같은 소켓인지 찾아서 인덱스 알아내기
+            return user[i].name;    // 자신의 인덱스로 user구조체 배열에 있는 자신의 이름을 char* 타입으로 리턴
+        }//end if
+    }//end for
+}
+
 void send_all_clnt(char* msg, int my_sock){ // 자신을 제외한 모든 사용자에게 메시지를 전달하는 함수
+    char sendmsg[BUFFSIZE]; // 보낼 메시지 배열
+    sprintf(sendmsg, "[%s]: %s", search_name(my_sock), msg);    // 보낼 형식으로 sendmsg에 저장
+    
     pthread_mutex_lock(&g_mutex);
     for(int i = 0; i < g_clnt_count; i++){ // g_clnt_count만큼 반복하기 때문에 send_all이 되는 것.
-        if(g_clnt_socks[i] != my_sock){
-            printf("send msg: %s", msg);
-            write(g_clnt_socks[i], msg, strlen(msg)+1); // **send가 가능하면 send도 사용해보자.
+        if(g_clnt_socks[i] != my_sock){ // 자신에게는 보내지 않기 위한 조건문
+            printf("send msg: %s", sendmsg);
+            write(g_clnt_socks[i], sendmsg, strlen(sendmsg)+1); // **send가 가능하면 send도 사용해보자.
         }
     }
     pthread_mutex_unlock(&g_mutex);
 }
 
-void send_spec_clnt(char* msg){
-    char * tok[4];  // 보낸 메시지를 나누어서 저장할 배열 포인터 [0]: 명령어, [1]: 받을 사람, [2] : 보낼 내용
+void send_spec_clnt(char* msg, int my_sock){
+    char * tok[3];  // 보낸 메시지를 나누어서 저장할 배열 포인터 [0]: 명령어, [1]: 받을 사람, [2] : 보낼 내용
 
     tok[0] = strtok(msg, " ");
-    for(int i = 1; i < 4; ++i){
+    for(int i = 1; i < 3; ++i){
         tok[i] = strtok(NULL, " ");
     }
 
-    char sendmsg[BUFFSIZE];
-    sprintf(sendmsg, "%s %s", tok[0], tok[3]);
+    char sendmsg[BUFFSIZE]; // 보낼 메시지
+    sprintf(sendmsg, "[%s]: %s", search_name(my_sock), tok[2]); // 보낼 형식으로 sendmsg에 저장
 
     pthread_mutex_lock(&g_mutex);
     for(int i = 0; i < g_clnt_count; i++){
-        if(strcmp(user[i].name, tok[2]) == 0){
+        if(strcmp(user[i].name, tok[1]) == 0){
             printf("send spec msg: %s", msg);
             write(g_clnt_socks[i], sendmsg, strlen(sendmsg)+1);
         }
@@ -69,15 +80,17 @@ void send_spec_clnt(char* msg){
 }
 
 void handle_command(char* msg, int my_sock){    // 명령어를 다루는 함수
+    char* msg_copy = (char*)malloc(strlen(msg) + 1);
+    strcpy(msg_copy, msg);  // 내용 복사
     char* cmd;   // 명령어 저장 포인터
-    cmd = strtok(msg, " ");  // 배열에 명령어 저장
-    char* errorcode = "잘못된 명령어 입니다.";
+    cmd = strtok(msg_copy, " ");  // 명령어 저장
 
-    if(strcmp(cmd, "/msg") == 0)
+    if(strcmp(cmd, "/msg") == 0)    // 귓속말 명령어
     {
-        send_spec_clnt(msg);
+        send_spec_clnt(msg, my_sock);
     }
-    else write(my_sock, errorcode, strlen(errorcode));
+    else write(my_sock, "errorcode", strlen("errorcode") + 1);
+    free(msg_copy); // 메모리 해제
 }
 
 void* clnt_connection(void* arg){ // 클라이언트 connect하는 start_routine
