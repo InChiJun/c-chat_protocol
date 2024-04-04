@@ -105,12 +105,9 @@ int main(int argc, char **argv){
         error_handling("connect error");
     } else{
         printf("connection success\n");
-<<<<<<< HEAD
         // char msg[NAMESIZE+4];
         // sprintf(msg, "[Entrance]: %s", name);
         write(sock, name, strlen(name)+1);
-=======
->>>>>>> 75b94d2 (fix: 성공시 에러 핸들링을 잘못 하용해서 바로 빠져나가는 거 수정)
     }
 
     pthread_create(&rcv_thread, NULL, recv_message, (void*) &sock);
