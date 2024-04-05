@@ -40,7 +40,7 @@ typedef struct _USER
 USER user[CLNT_MAX];    // user 정보 구조체 배열
 
 // 함수들
-int findIndexBySocket(int my_sock){  // 자신의 인덱스를 socket 값으로 찾는 함수
+int findIndexBySocket(int my_sock){  // 자신의 인덱스 -> socket
     pthread_mutex_lock(&g_mutex);
     for(int i = 0; i < g_clnt_count; i++){
         if(my_sock == g_clnt_socks[i]){ // 클라이언트 소켓에 저장 되어있는 소켓이 자신의 소켓과 같은 소켓인지 찾아서 인덱스 알아내기
@@ -48,9 +48,10 @@ int findIndexBySocket(int my_sock){  // 자신의 인덱스를 socket 값으로 
             return i;  // 자신의 인덱스를 리턴
         }//end if
     }//end for
+    pthread_mutex_unlock(&g_mutex);
 }
 
-int findIndexByName(char* my_name){ // 자신의 인덱스를 name 값으로 찾는 함수
+int findIndexByName(char* my_name){ // 자신의 name -> 인덱스
     pthread_mutex_lock(&g_mutex);
     for(int i = 0; i < g_clnt_count; i++){
         if(strcmp(my_name, user[i].name) == 0){ // user.name에서 자신의 이름과 같은 이름을 찾아서 인덱스 알아내기
@@ -58,26 +59,29 @@ int findIndexByName(char* my_name){ // 자신의 인덱스를 name 값으로 찾
             return i;    // 자신의 인덱스를 리턴
         }//end if
     }//end for
+    pthread_mutex_unlock(&g_mutex);
 }
 
-char* findNameBySocket(int my_sock){ // 자신의 이름을 socket 값으로 찾는 함수
+char* findNameBySocket(int my_sock){ // 자신의 name -> socket
     int i = findIndexBySocket(my_sock);
     return user[i].name;
 }
 
-// void send_all_clnt(char* msg, int my_sock){ // 자신을 제외한 모든 사용자에게 메시지를 전달하는 함수
-//     char sendmsg[BUFFSIZE]; // 보낼 메시지 배열
-//     sprintf(sendmsg, "[%s]: %s", findNameBySocket(my_sock), msg);    // 보낼 형식으로 sendmsg에 저장
+/*
+void send_all_clnt(char* msg, int my_sock){ // 자신을 제외한 모든 사용자에게 메시지를 전달하는 함수
+    char sendmsg[BUFFSIZE]; // 보낼 메시지 배열
+    sprintf(sendmsg, "[%s]: %s", findNameBySocket(my_sock), msg);    // 보낼 형식으로 sendmsg에 저장
     
-//     pthread_mutex_lock(&g_mutex);
-//     for(int i = 0; i < g_clnt_count; i++){ // g_clnt_count만큼 반복하기 때문에 send_all이 되는 것.
-//         if(g_clnt_socks[i] != my_sock){ // 자신에게는 보내지 않기 위한 조건문
-//             printf("send msg: %s", sendmsg);
-//             write(g_clnt_socks[i], sendmsg, strlen(sendmsg)+1); // **send가 가능하면 send도 사용해보자.
-//         }
-//     }
-//     pthread_mutex_unlock(&g_mutex);
-// }
+    pthread_mutex_lock(&g_mutex);
+    for(int i = 0; i < g_clnt_count; i++){ // g_clnt_count만큼 반복하기 때문에 send_all이 되는 것.
+        if(g_clnt_socks[i] != my_sock){ // 자신에게는 보내지 않기 위한 조건문
+            printf("send msg: %s", sendmsg);
+            write(g_clnt_socks[i], sendmsg, strlen(sendmsg)+1); // **send가 가능하면 send도 사용해보자.
+        }
+    }
+    pthread_mutex_unlock(&g_mutex);
+}
+*/
 
 void send_clnt(char* msg, int my_sock, int my_room){ // 자신을 제외한 같은방 사용자에게 메시지를 전달하는 함수
     char sendmsg[BUFFSIZE]; // 보낼 메시지 배열
@@ -87,7 +91,7 @@ void send_clnt(char* msg, int my_sock, int my_room){ // 자신을 제외한 같�
     for(int i = 0; i < g_clnt_count; i++){ // g_clnt_count만큼 반복하기 때문에 send_all이 되는 것.
         if((g_clnt_socks[i] != my_sock) && (user[i].room == my_room)){ // 자신에게 보내지 않으면서 다른방 사람에게 보내지 않기 위한 조건문
             printf("send msg: %s", sendmsg);
-            write(g_clnt_socks[i], sendmsg, strlen(sendmsg)+1); // **send가 가능하면 send도 사용해보자.
+            write(g_clnt_socks[i], sendmsg, strlen(sendmsg)+1);
         }
     }
     pthread_mutex_unlock(&g_mutex);
@@ -130,7 +134,7 @@ int roomCheck(){    // room 비어있는지 확인해서 비어있는 room 번�
     return room;
 }
 
-void creatRoom(char* msg, int my_sock){
+void createRoom(char* msg, int my_sock){
     // 룸 번호 확인
     int room = roomCheck();
     if(room == -1)  // 빈 방이 없으면
@@ -141,8 +145,11 @@ void creatRoom(char* msg, int my_sock){
 
     // msg에서 이름만 뽑아내기
     char* name = (char*)malloc(BUFFSIZE * sizeof(char));
-    char* cmd = strtok(msg, " ");   // 명령어 부분이라서 버림
-    name = strtok(NULL, " ");
+    strtok(msg, " "); // 명령어 부분은 버리기
+    name = strtok(NULL, " "); // 메시지에서 이름 골라내기
+
+    // 해당 이름에 1:1 대화 신청
+    // 승낙하면 1:1 대화방 입장
 
     // 유저1과 유저2의 방 번호를 새로운 방번호로 교체
     pthread_mutex_lock(&g_mutex);
@@ -172,7 +179,8 @@ void handle_command(char* msg, int my_sock){    // 명령어를 다루는 함수
     }
     else if(strcmp(cmd, "/privateChat") == 0)   // 1:1 채팅방을 만드는 명령어 형식: /privateRoom [초대 받는 사람]
     {
-        creatRoom(msg, my_sock);
+        send_spec_clnt(msg, my_sock);
+        createRoom(msg, my_sock);
     }
     else if(strcmp(cmd, "/exitroom") == 0)  // 채팅방을 나가는 명령어 형식: /exitroom
     {
@@ -209,7 +217,7 @@ void* clnt_connection(void* arg){ // 클라이언트 connect하는 start_routine
         {
             handle_command(msg, clnt_sock); // 명령어를 처리하는 함수
         }
-        else send_clnt(msg, clnt_sock, user[my_num].room); // **소켓을 넣어서 보내는 이유를 파악해보자.
+        else send_clnt(msg, clnt_sock, user[my_num].room);
         printf("%s\n", msg); // **사용자 아이디도 있어야 하므로 버그 가능(수정 필요)
     }
     
@@ -281,17 +289,18 @@ void* handle_chatroom(void* arg){
 
     return NULL;
 }
-*/
 
-// void create_chatroom(pthread_t* t_thread, char* user1_name, char* user2_name){   // 개인 채팅방 만드는 함수
-//     pthread_mutex_lock(&g_mutex);
-//     // 개인 채팅방 생성 로직을 구현하기
-//     if(g_room_count == ROOM_MAX) return;
-//     pthread_create(g_t_thread[g_room_count], NULL, handle_chatroom, (void*) &room[g_room_count]);
-//     ++g_room_count;
-//     pthread_mutex_unlock(&g_mutex);
-//     return NULL;
-// }
+
+void create_chatroom(pthread_t* t_thread, char* user1_name, char* user2_name){   // 개인 채팅방 만드는 함수
+    pthread_mutex_lock(&g_mutex);
+    // 개인 채팅방 생성 로직을 구현하기
+    if(g_room_count == ROOM_MAX) return;
+    pthread_create(g_t_thread[g_room_count], NULL, handle_chatroom, (void*) &room[g_room_count]);
+    ++g_room_count;
+    pthread_mutex_unlock(&g_mutex);
+    return NULL;
+}
+*/
 
 int main(int argc, char ** argv){
     int serv_sock;
