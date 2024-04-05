@@ -41,23 +41,29 @@ USER user[CLNT_MAX];    // user 정보 구조체 배열
 
 // 함수들
 int findIndexBySocket(int my_sock){  // 자신의 인덱스를 socket 값으로 찾는 함수
+    int index = -1;
     pthread_mutex_lock(&g_mutex);
     for(int i = 0; i < g_clnt_count; i++){
         if(my_sock == g_clnt_socks[i]){ // 클라이언트 소켓에 저장 되어있는 소켓이 자신의 소켓과 같은 소켓인지 찾아서 인덱스 알아내기
-            pthread_mutex_unlock(&g_mutex);
-            return i;  // 자신의 인덱스를 리턴
+            index = i;
+            break;
         }//end if
     }//end for
+    pthread_mutex_unlock(&g_mutex);
+    return index;  // 자신의 인덱스를 리턴
 }
 
 int findIndexByName(char* my_name){ // 자신의 인덱스를 name 값으로 찾는 함수
+    int index = -1;
     pthread_mutex_lock(&g_mutex);
     for(int i = 0; i < g_clnt_count; i++){
-        if(strcmp(my_name, user[i].name) == 0){ // user.name에서 자신의 이름과 같은 이름을 찾아서 인덱스 알아내기
-            pthread_mutex_unlock(&g_mutex);
-            return i;    // 자신의 인덱스를 리턴
+        if(strncmp(my_name, user[i].name, strlen(user[i].name)) == 0){ // user.name에서 자신의 이름과 같은 이름을 찾아서 인덱스 알아내기
+            index = i;
+            break;
         }//end if
     }//end for
+    pthread_mutex_unlock(&g_mutex);
+    return index;    // 자신의 인덱스를 리턴
 }
 
 char* findNameBySocket(int my_sock){ // 자신의 이름을 socket 값으로 찾는 함수
@@ -121,16 +127,15 @@ int roomCheck(){    // room 비어있는지 확인해서 비어있는 room 번�
     for(int i = 1; i < ROOM_MAX; ++i){
         if(g_room_state[i] == 0)
         {
-            pthread_mutex_unlock(&g_mutex);
             room = i;
-            return room;
+            break;
         }
     }
     pthread_mutex_unlock(&g_mutex);
     return room;
 }
 
-void creatRoom(char* msg, int my_sock){
+void createRoom(char* msg, int my_sock){
     // 룸 번호 확인
     int room = roomCheck();
     if(room == -1)  // 빈 방이 없으면
@@ -140,9 +145,9 @@ void creatRoom(char* msg, int my_sock){
     }
 
     // msg에서 이름만 뽑아내기
-    char* name = (char*)malloc(BUFFSIZE * sizeof(char));
+    //char* name = (char*)malloc(BUFFSIZE * sizeof(char));
     char* cmd = strtok(msg, " ");   // 명령어 부분이라서 버림
-    name = strtok(NULL, " ");
+    char* name = strtok(NULL, " ");
 
     // 유저1과 유저2의 방 번호를 새로운 방번호로 교체
     pthread_mutex_lock(&g_mutex);
@@ -152,6 +157,9 @@ void creatRoom(char* msg, int my_sock){
 
     user[findIndexByName(name)].room = room;
     user[findIndexBySocket(my_sock)].room = room;
+
+    printf("Index : %d, \n", findIndexByName(name));
+    printf("%d\n", user[findIndexByName(name)].room);
 }
 
 void exitRoom(int my_sock){
@@ -172,7 +180,7 @@ void handle_command(char* msg, int my_sock){    // 명령어를 다루는 함수
     }
     else if(strcmp(cmd, "/privateChat") == 0)   // 1:1 채팅방을 만드는 명령어 형식: /privateRoom [초대 받는 사람]
     {
-        creatRoom(msg, my_sock);
+        createRoom(msg, my_sock);
     }
     else if(strcmp(cmd, "/exitroom") == 0)  // 채팅방을 나가는 명령어 형식: /exitroom
     {
@@ -216,7 +224,8 @@ void* clnt_connection(void* arg){ // 클라이언트 connect하는 start_routine
     pthread_mutex_lock(&g_mutex);
     for(; my_num < g_clnt_count - 1; my_num++){
                 g_clnt_socks[my_num] = g_clnt_socks[my_num+1];
-    }//end for
+    }
+    g_clnt_count--;
 
     /*
     for(i = 0; i < g_clnt_count; i++){
