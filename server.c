@@ -163,9 +163,7 @@ void createRoom(char* msg, int my_sock){
 }
 
 void exitRoom(int my_sock){
-    pthread_mutex_lock(&g_mutex);
     user[findIndexBySocket(my_sock)].room = 0;
-    pthread_mutex_unlock(&g_mutex);
 }
 
 void handle_command(char* msg, int my_sock){    // 명령어를 다루는 함수
@@ -182,7 +180,7 @@ void handle_command(char* msg, int my_sock){    // 명령어를 다루는 함수
     {
         createRoom(msg, my_sock);
     }
-    else if(strcmp(cmd, "/exitroom") == 0)  // 채팅방을 나가는 명령어 형식: /exitroom
+    else if(strncmp(cmd, "/exitroom", strlen("/exitroom")) == 0)  // 채팅방을 나가는 명령어 형식: /exitroom
     {
         exitRoom(my_sock);
     }
