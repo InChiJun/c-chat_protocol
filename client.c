@@ -44,16 +44,14 @@ void* send_message(void* arg)
 {
     int sock = *((int *)arg);
     char chat[BUFFSIZE];
-    char msg[NAMESIZE + BUFFSIZE + 4];
 
     printf("while before\n");
     while(1){
         fgets(chat, BUFFSIZE, stdin);
 
-        sprintf(msg, "[%s]: %s\n", name, chat);
-        printf("send: %s", msg);
+        printf("send: %s", chat);
 
-        write(sock, msg, strlen(msg)+1);
+        write(sock, chat, strlen(chat)+1);
         sleep(1);
     }
     printf("while end");
