@@ -20,6 +20,7 @@ int g_clnt_count = 0; // client 수
 pthread_mutex_t g_mutex;    // mutex 키
 int g_room_count = 0;   // room 개수
 int g_room_state[ROOM_MAX] = {1,0,0,0,0};   // room의 사용자가 있는지 여부 확인용 배열 | 0 : 없음 | 1 : 있음 |
+int g_room_person_count[ROOM_MAX] = {0, 0, 0, 0, 0};   // 방의 사람 수
 
 // USER 정보 구조체
 typedef struct _USER
@@ -31,9 +32,7 @@ typedef struct _USER
 //chatroom 정보 구조체
 // typedef struct _ROOM
 // {
-//     char user1_name[NAMESIZE];
-//     char user2_name[NAMESIZE];
-
+//     int person_count;
 // }ROOM;
 
 // 구조체 배열들
@@ -145,25 +144,31 @@ void createRoom(char* msg, int my_sock){
     }
 
     // msg에서 이름만 뽑아내기
-    //char* name = (char*)malloc(BUFFSIZE * sizeof(char));
-    char* cmd = strtok(msg, " ");   // 명령어 부분이라서 버림
+    strtok(msg, " ");   // 명령어 부분이라서 버림
     char* name = strtok(NULL, " ");
 
     // 유저1과 유저2의 방 번호를 새로운 방번호로 교체
     pthread_mutex_lock(&g_mutex);
     g_room_state[room] = 1;
     ++g_room_count;
+    g_room_person_count[room] += 2;
     pthread_mutex_unlock(&g_mutex);
 
     user[findIndexByName(name)].room = room;
     user[findIndexBySocket(my_sock)].room = room;
-
-    printf("Index : %d, \n", findIndexByName(name));
-    printf("%d\n", user[findIndexByName(name)].room);
 }
 
 void exitRoom(int my_sock){
-    user[findIndexBySocket(my_sock)].room = 0;
+    int index = findIndexBySocket(my_sock);
+
+    pthread_mutex_lock(&g_mutex);
+    if(--g_room_person_count[user[index].room] == 0){   // 방의 마지막 사람이 나가면
+        // 방 빼기
+        g_room_state[user[index].room] = 0;
+    }
+    pthread_mutex_unlock(&g_mutex);
+
+    user[index].room = 0;   // 단체 채팅방으로 이동
 }
 
 void handle_command(char* msg, int my_sock){    // 명령어를 다루는 함수
@@ -201,9 +206,6 @@ void* clnt_connection(void* arg){ // 클라이언트 connect하는 start_routine
             break;
         }//end if
     }//end for
-
-    // char cmpmsg[NAMESIZE + 8];
-    // sprintf(cmpmsg, "[%s]: /msg", user[my_num].name);
 
     while(1){
         str_len = read(clnt_sock, msg, sizeof(msg));
@@ -343,6 +345,7 @@ int main(int argc, char ** argv){
         pthread_mutex_lock(&g_mutex);
         strcpy(user[g_clnt_count].name, clnt_name); // 받아온 유저의 이름을 유저 구조체에 저장
         user[g_clnt_count].room = 0;    // 유저의 위치를 전체 채팅방으로 초기 설정
+        ++g_room_person_count[0];   // 채팅방 인원수 증가
         g_clnt_socks[g_clnt_count++] = clnt_sock;
         pthread_mutex_unlock(&g_mutex);
 
